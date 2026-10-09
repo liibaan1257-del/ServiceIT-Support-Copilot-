@@ -94,8 +94,7 @@ export function MetricsPanel() {
         <p className="font-medium text-zinc-300">About these numbers</p>
         <p className="mt-1">
           Counted in memory by each server instance, so on Vercel they reset when an instance restarts and
-          can differ between refreshes. Request logs are written as JSON to stdout (Vercel → Logs). Lasting
-          history arrives with the database in Part 3.
+          can differ between refreshes. Request logs are written as JSON to stdout (Vercel → Logs).
         </p>
       </div>
     </div>

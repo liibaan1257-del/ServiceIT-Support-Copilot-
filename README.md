@@ -24,7 +24,10 @@ on every page (`lib/auth/session.ts`), not just in the proxy.
 
 ### Supabase setup
 
-1. Supabase → **SQL Editor**: run `supabase/migrations/20261009100000_profiles_and_roles.sql`.
+1. Supabase → **SQL Editor**: run the files in `supabase/migrations/` in
+   order (`20261009100000_profiles_and_roles.sql`, then
+   `20261009120000_users_admin.sql`). Optional check: run
+   `supabase/tests/users_admin_test.sql` → "Success. No rows returned".
 2. Supabase → **Authentication → Users → Add user**: create your admin
    account (email + password, "Auto Confirm User").
 3. SQL Editor: make that account an admin:
@@ -36,7 +39,10 @@ on every page (`lib/auth/session.ts`), not just in the proxy.
 
 Roles: `customer` (default for every new account), `technician`, `admin`.
 Users can read their own profile but never change it, so nobody can promote
-themselves; roles change only through SQL.
+themselves. Admins change roles on **Users** (`/admin/users`) through the
+`admin_set_user_role` database function, which re-checks the admin role,
+refuses changes to your own role (there is always at least one admin) and
+records each change in `audit_log`.
 
 ## Commands
 
