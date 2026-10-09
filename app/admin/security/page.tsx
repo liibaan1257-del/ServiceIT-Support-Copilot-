@@ -30,9 +30,9 @@ export default function SecurityPage() {
 }
 
 /** Presence and length of a server-only secret (the value itself never leaves this function). */
-function secretCheck(name: string, purpose: string): Check {
+function secretCheck(name: string, purpose: string, feature: string): Check {
   const value = process.env[name]?.trim() ?? "";
-  if (!value) return { name, status: "fail", detail: `Missing. ${purpose} won't work until it's set in Vercel.` };
+  if (!value) return { name, status: "fail", detail: `Missing. ${feature} won't work until it's set in Vercel.` };
   if (value.length < MIN_SECRET_LENGTH) {
     return { name, status: "warn", detail: `Set, but shorter than ${MIN_SECRET_LENGTH} characters. Use a longer random value.` };
   }
@@ -64,8 +64,8 @@ async function SecurityView() {
               ? "The key doesn't belong to this project. Fix NEXT_PUBLIC_SUPABASE_ANON_KEY."
               : "Supabase couldn't be reached.",
     },
-    secretCheck("API_KEY", "authenticates POST /api/chat"),
-    secretCheck("WEBHOOK_SECRET", "verifies POST /api/tickets signatures"),
+    secretCheck("API_KEY", "authenticates POST /api/chat", "POST /api/chat"),
+    secretCheck("WEBHOOK_SECRET", "verifies POST /api/tickets signatures", "POST /api/tickets"),
     isAiConfigured()
       ? { name: "ANTHROPIC_API_KEY", status: "ok", detail: "Set (server-only; used for AI answers)." }
       : { name: "ANTHROPIC_API_KEY", status: "fail", detail: "Missing. AI chat won't work until it's set in Vercel." },
