@@ -44,3 +44,31 @@ export function getSupabaseEnv(): { url: string; key: string } {
   }
   return { url: publicEnv.supabaseUrl, key: publicEnv.supabaseKey };
 }
+
+/** The project ref from the Supabase URL (e.g. "abcd1234" from https://abcd1234.supabase.co). Not a secret. */
+export function getSupabaseProjectRef(): string | null {
+  if (!isSupabaseConfigured()) return null;
+  return new URL(publicEnv.supabaseUrl).hostname.split(".")[0] || null;
+}
+
+export type SupabaseAuthStatus = "ok" | "key_rejected" | "unreachable" | "not_configured";
+
+/**
+ * Checks that the URL and key belong together: Supabase Auth answers 200 to
+ * /auth/v1/settings only when the key matches the project.
+ */
+export async function checkSupabaseAuth(): Promise<SupabaseAuthStatus> {
+  if (!isSupabaseConfigured()) return "not_configured";
+  const { supabaseUrl, supabaseKey } = publicEnv;
+  try {
+    const res = await fetch(`${supabaseUrl}/auth/v1/settings`, {
+      headers: { apikey: supabaseKey },
+      cache: "no-store",
+      signal: AbortSignal.timeout(3000),
+    });
+    if (res.ok) return "ok";
+    return res.status === 401 || res.status === 403 ? "key_rejected" : "unreachable";
+  } catch {
+    return "unreachable";
+  }
+}

@@ -36,7 +36,9 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     if (error.code === "over_request_rate_limit") return { error: "Too many attempts. Please wait and try again." };
     if (error.code === "email_not_confirmed") return { error: "Please confirm your email address first." };
     // Same message for wrong email or wrong password (doesn't reveal which accounts exist).
-    return { error: "Incorrect email or password." };
+    if (error.code === "invalid_credentials") return { error: "Incorrect email or password." };
+    // Anything else is a server/setup problem (e.g. a key from another project), not the user's password.
+    return { error: `Sign-in failed on the server (${error.code ?? `status ${error.status ?? "unknown"}`}). Check the Supabase settings.` };
   }
 
   redirect(next);

@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { getSupabaseConfigStatus } from "@/lib/env";
+import { checkSupabaseAuth, getSupabaseConfigStatus, getSupabaseProjectRef } from "@/lib/env";
 import { json } from "@/lib/utils/http";
 import { withMiddleware } from "@/lib/utils/middleware";
 import { requestLogger } from "@/lib/utils/middlewares";
@@ -19,5 +19,7 @@ export const GET = withMiddleware("/api/health", [requestLogger], async (ctx) =>
     version: VERSION,
     // Configuration status only (never the values).
     supabase: getSupabaseConfigStatus(),
+    supabaseProject: getSupabaseProjectRef(),
+    supabaseAuth: await checkSupabaseAuth(),
   });
 });
