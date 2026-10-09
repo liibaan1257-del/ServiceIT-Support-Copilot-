@@ -17,15 +17,23 @@ export const publicEnv = {
     clean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) || clean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
 } as const;
 
-export function isSupabaseConfigured(): boolean {
+export type SupabaseConfigStatus = "ok" | "missing_url" | "missing_key" | "invalid_url";
+
+/** Non-secret summary of the Supabase setup (safe to show and return from /api/health). */
+export function getSupabaseConfigStatus(): SupabaseConfigStatus {
   const { supabaseUrl, supabaseKey } = publicEnv;
-  if (!supabaseUrl || !supabaseKey) return false;
+  if (!supabaseUrl) return "missing_url";
+  if (!supabaseKey) return "missing_key";
   try {
     const { protocol } = new URL(supabaseUrl);
-    return protocol === "https:" || protocol === "http:";
+    return protocol === "https:" || protocol === "http:" ? "ok" : "invalid_url";
   } catch {
-    return false;
+    return "invalid_url";
   }
+}
+
+export function isSupabaseConfigured(): boolean {
+  return getSupabaseConfigStatus() === "ok";
 }
 
 export function getSupabaseEnv(): { url: string; key: string } {

@@ -3,7 +3,7 @@ import { Suspense, type ReactNode } from "react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { logout } from "@/lib/auth/actions";
 import { requireAdmin } from "@/lib/auth/session";
-import { isSupabaseConfigured } from "@/lib/env";
+import { getSupabaseConfigStatus } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: { default: "Admin", template: "%s · ServiceIT Admin" },
@@ -21,8 +21,19 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
 
 /** Server-side check on every admin page: signed in AND role = admin. */
 async function AdminGate({ children }: { children: ReactNode }) {
-  if (!isSupabaseConfigured()) {
-    return <Notice title="Sign-in is not configured" text="Add the Supabase environment variables to enable the admin area." />;
+  const status = getSupabaseConfigStatus();
+  if (status !== "ok") {
+    const reason = {
+      missing_url: "NEXT_PUBLIC_SUPABASE_URL is missing.",
+      missing_key: "NEXT_PUBLIC_SUPABASE_ANON_KEY is missing.",
+      invalid_url: "NEXT_PUBLIC_SUPABASE_URL is not a valid URL (expected https://<project>.supabase.co).",
+    }[status];
+    return (
+      <Notice
+        title="Sign-in is not configured"
+        text={`${reason} Add it in Vercel → Settings → Environment Variables, then redeploy.`}
+      />
+    );
   }
   const user = await requireAdmin();
   if (!user) {
