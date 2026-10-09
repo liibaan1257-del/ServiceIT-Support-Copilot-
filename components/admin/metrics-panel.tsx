@@ -78,7 +78,7 @@ export function MetricsPanel() {
       {data ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-busy={loading}>
           <Card label="Total requests" value={data.totalRequests.toLocaleString()} hint="since this server started" />
-          <Card label="Total cost" value={`$${data.totalCost.toFixed(4)}`} hint="USD · AI usage (from Part 4)" />
+          <Card label="Total cost" value={`$${data.totalCost.toFixed(4)}`} hint="USD · AI usage on this instance" />
           <Card label="Average latency" value={`${data.averageLatency} ms`} hint="per request" />
           <Card label="Active requests" value={String(data.activeRequests)} hint="right now" />
         </div>

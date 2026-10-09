@@ -26,7 +26,7 @@ on every page (`lib/auth/session.ts`), not just in the proxy.
 
 1. Supabase → **SQL Editor**: run the files in `supabase/migrations/` in
    order (`20261009100000_profiles_and_roles.sql`, then
-   `20261009120000_users_admin.sql`). Optional check: run
+   `20261009120000_users_admin.sql`, then `20261009140000_chat.sql`). Optional check: run
    `supabase/tests/users_admin_test.sql` → "Success. No rows returned".
 2. Supabase → **Authentication → Users → Add user**: create your admin
    account (email + password, "Auto Confirm User").
@@ -43,6 +43,17 @@ themselves. Admins change roles on **Users** (`/admin/users`) through the
 `admin_set_user_role` database function, which re-checks the admin role,
 refuses changes to your own role (there is always at least one admin) and
 records each change in `audit_log`.
+
+### AI chat (Claude)
+
+`/admin/chat` talks to the support copilot (`claude-opus-5-5`, streamed) and
+saves each admin's conversations in `chat_conversations` / `chat_messages`
+(owner-only under RLS). `POST /api/chat` answers single questions for API
+clients. Both need the server-only secret `ANTHROPIC_API_KEY` (Vercel →
+Settings → Environment Variables, type **Secret**, then redeploy). Requests
+use Anthropic's server-side refusal fallback (`fallbacks: "default"`). Each
+admin may send 10 messages per minute; token usage and cost are stored per
+reply and added to the Metrics page's total cost.
 
 ## Commands
 
@@ -61,7 +72,7 @@ Errors look like `{ "error": { "code", "message", "fields"? }, "requestId" }`.
 
 | Endpoint | Auth | Body | Success |
 | --- | --- | --- | --- |
-| `POST /api/chat` | `Authorization: Bearer <API_KEY>` | `{ message, customerId }` | `200 { id, timestamp, status, requestId }` |
+| `POST /api/chat` | `Authorization: Bearer <API_KEY>` | `{ message, customerId }` | `200 { id, timestamp, status: "answered", reply, model, usage, costUsd, requestId }` (503 if `ANTHROPIC_API_KEY` is missing) |
 | `POST /api/tickets` | `x-webhook-secret: <hex HMAC-SHA256(raw body, WEBHOOK_SECRET)>` | `{ subject, description, priority, customerId }` | `201 { ticketId, created, requestId }` |
 | `GET /api/health` | none | | `200 { status: "ok", timestamp, version }` |
 | `GET /api/metrics` | none | | `200 { totalRequests, totalCost, averageLatency, activeRequests }` |
