@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { Markdown } from "@/components/admin/chat/markdown";
 
 export type PanelMessage = { id: string; role: "user" | "assistant"; content: string; costUsd?: number | null };
 
@@ -141,14 +142,20 @@ export function ChatPanel({
           messages.map((m) => (
             <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+                className={`max-w-[85%] min-w-0 rounded-xl px-4 py-2.5 text-sm leading-relaxed break-words ${
                   m.role === "user"
-                    ? "bg-emerald-500/15 text-emerald-50 ring-1 ring-emerald-500/20"
+                    ? "bg-emerald-500/15 whitespace-pre-wrap text-emerald-50 ring-1 ring-emerald-500/20"
                     : "bg-zinc-800/70 text-zinc-100 ring-1 ring-zinc-700/50"
                 }`}
               >
                 <span className="sr-only">{m.role === "user" ? "You: " : "Copilot: "}</span>
-                {m.content || <span className="animate-pulse text-zinc-400">Thinking…</span>}
+                {!m.content ? (
+                  <span className="animate-pulse text-zinc-400">Thinking…</span>
+                ) : m.role === "assistant" ? (
+                  <Markdown text={m.content} />
+                ) : (
+                  m.content
+                )}
                 {m.role === "assistant" && typeof m.costUsd === "number" ? (
                   <span className="mt-1.5 block text-[10px] text-zinc-500">${m.costUsd.toFixed(4)}</span>
                 ) : null}
