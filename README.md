@@ -15,6 +15,29 @@ cp .env.example .env.local   # then fill in the values
 npm run dev                  # http://localhost:3000
 ```
 
+## Admin dashboard
+
+`/admin` (Metrics, Chat, Users, Rate Limits, Audit Log, Security, Settings).
+Only signed-in users with the **admin** role can open it; everyone else is
+sent to `/login` or sees "No admin access". The role is checked on the server
+on every page (`lib/auth/session.ts`), not just in the proxy.
+
+### Supabase setup
+
+1. Supabase → **SQL Editor**: run `supabase/migrations/20261009100000_profiles_and_roles.sql`.
+2. Supabase → **Authentication → Users → Add user**: create your admin
+   account (email + password, "Auto Confirm User").
+3. SQL Editor: make that account an admin:
+   ```sql
+   update public.profiles set role = 'admin' where email = 'you@example.com';
+   ```
+4. Vercel → Settings → Environment Variables: `NEXT_PUBLIC_SUPABASE_URL` and
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase → Project Settings → API), then redeploy.
+
+Roles: `customer` (default for every new account), `technician`, `admin`.
+Users can read their own profile but never change it, so nobody can promote
+themselves; roles change only through SQL.
+
 ## Commands
 
 | Command | Description |

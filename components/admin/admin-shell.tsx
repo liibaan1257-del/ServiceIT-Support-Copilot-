@@ -5,6 +5,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ADMIN_NAV } from "@/components/admin/nav";
 import { LiveStatus } from "@/components/admin/live-status";
+import { logout } from "@/lib/auth/actions";
+
+export type AdminUser = { email: string | null; role: string };
 
 function Logo() {
   return (
@@ -48,16 +51,34 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function SidebarFooter() {
+function SidebarFooter({ user }: { user: AdminUser }) {
   return (
-    <div className="border-t border-zinc-800 p-4 text-xs text-zinc-500">
-      <p>Admin sign-in arrives in Part 2.</p>
+    <div className="space-y-2 border-t border-zinc-800 p-4">
+      <p className="truncate text-xs text-zinc-400" title={user.email ?? undefined}>
+        {user.email ?? "Signed in"}
+      </p>
+      <span className="inline-block rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-emerald-400 uppercase">
+        {user.role}
+      </span>
     </div>
   );
 }
 
+function SignOutButton() {
+  return (
+    <form action={logout}>
+      <button
+        type="submit"
+        className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+      >
+        Sign out
+      </button>
+    </form>
+  );
+}
+
 /** Dark admin layout: fixed sidebar on desktop, slide-in drawer on mobile. */
-export function AdminShell({ children }: { children: ReactNode }) {
+export function AdminShell({ children, user }: { children: ReactNode; user: AdminUser }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Close the drawer with Escape.
@@ -78,7 +99,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="flex-1 overflow-y-auto px-3">
           <NavLinks />
         </div>
-        <SidebarFooter />
+        <SidebarFooter user={user} />
       </aside>
 
       {/* Mobile drawer */}
@@ -107,7 +128,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <div className="flex-1 overflow-y-auto px-3">
               <NavLinks onNavigate={() => setMenuOpen(false)} />
             </div>
-            <SidebarFooter />
+            <SidebarFooter user={user} />
           </aside>
         </div>
       ) : null}
@@ -128,7 +149,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </button>
             <span className="text-sm font-medium text-zinc-300 lg:hidden">ServiceIT Admin</span>
           </div>
-          <LiveStatus />
+          <div className="flex items-center gap-2">
+            <LiveStatus />
+            <SignOutButton />
+          </div>
         </header>
         <main id="main" className="flex-1 px-4 py-6 sm:px-6">
           {children}

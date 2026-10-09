@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { verifyApiKey } from "@/lib/auth/verifyApiKey";
 import { verifyWebhook } from "@/lib/auth/verifyWebhook";
 import { logger } from "@/lib/logging/logger";
@@ -14,26 +15,32 @@ export const MAX_BODY_BYTES = 64 * 1024;
  */
 export const requestLogger: Middleware = async (ctx, next) => {
   metrics.start();
-  let response: Response;
+  let response: Response | undefined;
   try {
     response = await next();
   } catch (error) {
+    // Let Next.js's own control-flow signals (e.g. connection() during the
+    // build's prerender pass, redirects) through instead of treating them as errors.
+    unstable_rethrow(error);
     logger.error("unhandled_error", {
       requestId: ctx.requestId,
       route: ctx.route,
       error: error instanceof Error ? error.message : String(error),
     });
     response = errorResponse(ctx, 500, "internal_error", "Something went wrong. Please try again.");
+  } finally {
+    const latencyMs = Math.round(performance.now() - ctx.startedAt);
+    metrics.end(latencyMs);
+    if (response) {
+      logger.info("request", {
+        requestId: ctx.requestId,
+        method: ctx.req.method,
+        route: ctx.route,
+        status: response.status,
+        latencyMs,
+      });
+    }
   }
-  const latencyMs = Math.round(performance.now() - ctx.startedAt);
-  metrics.end(latencyMs);
-  logger.info("request", {
-    requestId: ctx.requestId,
-    method: ctx.req.method,
-    route: ctx.route,
-    status: response.status,
-    latencyMs,
-  });
   return response;
 };
 
