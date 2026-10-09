@@ -26,8 +26,9 @@ on every page (`lib/auth/session.ts`), not just in the proxy.
 
 1. Supabase → **SQL Editor**: run the files in `supabase/migrations/` in
    order (`20261009100000_profiles_and_roles.sql`, then
-   `20261009120000_users_admin.sql`, then `20261009140000_chat.sql`). Optional check: run
-   `supabase/tests/users_admin_test.sql` → "Success. No rows returned".
+   `20261009120000_users_admin.sql`, `20261009140000_chat.sql`, then
+   `20261009160000_admin_tools.sql`). Optional checks: run the files in
+   `supabase/tests/` → "Success. No rows returned" (they roll back).
 2. Supabase → **Authentication → Users → Add user**: create your admin
    account (email + password, "Auto Confirm User").
 3. SQL Editor: make that account an admin:
@@ -51,9 +52,25 @@ saves each admin's conversations in `chat_conversations` / `chat_messages`
 (owner-only under RLS). `POST /api/chat` answers single questions for API
 clients. Both need the server-only secret `ANTHROPIC_API_KEY` (Vercel →
 Settings → Environment Variables, type **Secret**, then redeploy). Requests
-use Anthropic's server-side refusal fallback (`fallbacks: "default"`). Each
-admin may send 10 messages per minute; token usage and cost are stored per
-reply and added to the Metrics page's total cost.
+use Anthropic's server-side refusal fallback (`fallbacks: "default"`). Token
+usage and cost are stored per reply and added to the Metrics page's total
+cost.
+
+### Settings, Rate Limits, Audit Log, Security
+
+- **Settings**: turn AI answers on/off, answer depth (effort), chat messages
+  per admin per minute (default 10), and help desk notes the copilot uses.
+  Stored in `app_settings`, changed only through `admin_update_settings`
+  (admin check + audit entry). The values are not secret.
+- **Rate Limits**: every limit the app enforces, and per-admin chat usage for
+  the last minute / hour / 24 hours with AI cost.
+- **Audit Log**: role and settings changes, filterable. Written only by
+  database functions; nobody can edit or delete entries from the app.
+- **Security**: live checks (Supabase key, `API_KEY` / `WEBHOOK_SECRET` /
+  `ANTHROPIC_API_KEY` present and long enough, Row Level Security on every
+  table, admin accounts) and the HTTP security headers
+  (`lib/security/headers.ts`, applied in `next.config.ts`). Secret values are
+  never shown.
 
 ## Commands
 

@@ -80,15 +80,27 @@ function textOf(message: Anthropic.Beta.BetaMessage): string {
     .trim();
 }
 
-function request(turns: ChatTurn[]) {
+/** Per-request options, from the admin Settings page. */
+export type ReplyOptions = { effort?: "low" | "medium" | "high"; supportNotes?: string };
+
+function request(turns: ChatTurn[], { effort = "medium", supportNotes = "" }: ReplyOptions = {}) {
+  const system: Anthropic.Beta.BetaTextBlockParam[] = [
+    // The base prompt never changes, so it is cached across requests.
+    { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+  ];
+  if (supportNotes.trim()) {
+    system.push({
+      type: "text",
+      text: `Help desk information from the ServiceIT admins (use it when relevant):\n${supportNotes.trim()}`,
+    });
+  }
   return {
     model: MODEL,
     max_tokens: 16000,
     betas: [FALLBACK_BETA],
     fallbacks: "default" as const,
-    output_config: { effort: "medium" as const },
-    // The system prompt never changes, so it is cached across requests.
-    system: [{ type: "text" as const, text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" as const } }],
+    output_config: { effort },
+    system,
     messages: turns.map((t) => ({ role: t.role, content: t.content })),
   };
 }
@@ -98,8 +110,8 @@ export type Reply = { text: string; usage: Usage; cost: number; model: string; r
 const REFUSAL_TEXT = "Sorry, I can't help with that request.";
 
 /** One complete answer (used by POST /api/chat). */
-export async function reply(turns: ChatTurn[]): Promise<Reply> {
-  const message = await getClient().beta.messages.create(request(turns));
+export async function reply(turns: ChatTurn[], options?: ReplyOptions): Promise<Reply> {
+  const message = await getClient().beta.messages.create(request(turns, options));
   const usage = usageOf(message);
   const refused = message.stop_reason === "refusal";
   return {
@@ -118,9 +130,9 @@ export async function reply(turns: ChatTurn[]): Promise<Reply> {
 export async function streamReply(
   turns: ChatTurn[],
   onText: (delta: string) => void,
-  signal?: AbortSignal,
+  options?: ReplyOptions & { signal?: AbortSignal },
 ): Promise<Reply> {
-  const stream = getClient().beta.messages.stream(request(turns), { signal });
+  const stream = getClient().beta.messages.stream(request(turns, options), { signal: options?.signal });
   stream.on("text", onText);
   const message = await stream.finalMessage();
   const usage = usageOf(message);

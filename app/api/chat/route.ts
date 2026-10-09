@@ -1,5 +1,6 @@
 import { describeAiError, isAiConfigured, reply } from "@/lib/ai/copilot";
 import { logger } from "@/lib/logging/logger";
+import { getAppSettings } from "@/lib/settings/settings";
 import { errorResponse, json } from "@/lib/utils/http";
 import { metrics } from "@/lib/utils/metrics";
 import { withMiddleware } from "@/lib/utils/middleware";
@@ -24,9 +25,15 @@ export const POST = withMiddleware(
       return errorResponse(ctx, 503, "ai_not_configured", "The AI service is not configured.");
     }
 
+    const settings = await getAppSettings();
+    if (!settings.aiEnabled) return errorResponse(ctx, 503, "ai_disabled", "The AI service is turned off.");
+
     const id = `msg_${crypto.randomUUID().replace(/-/g, "")}`;
     try {
-      const result = await reply([{ role: "user", content: parsed.data.message }]);
+      const result = await reply([{ role: "user", content: parsed.data.message }], {
+        effort: settings.aiEffort,
+        supportNotes: settings.supportNotes,
+      });
       metrics.addCost(result.cost);
       // Log metadata only, never the message text (it may contain personal data).
       logger.info("chat_answered", {

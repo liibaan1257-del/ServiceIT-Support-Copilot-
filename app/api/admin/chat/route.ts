@@ -2,15 +2,13 @@ import { describeAiError, isAiConfigured, MODEL, streamReply, type ChatTurn } fr
 import { getSessionUser } from "@/lib/auth/session";
 import { HISTORY_LIMIT, titleFrom, UUID } from "@/lib/chat/history";
 import { logger } from "@/lib/logging/logger";
+import { getAppSettings } from "@/lib/settings/settings";
 import { createClient } from "@/lib/supabase/server";
 import { errorResponse } from "@/lib/utils/http";
 import { metrics } from "@/lib/utils/metrics";
 import { withMiddleware, type Middleware } from "@/lib/utils/middleware";
 import { parseJsonBody, readRawBody, requestLogger } from "@/lib/utils/middlewares";
 import { LIMITS } from "@/lib/utils/validation";
-
-/** Messages one admin may send per minute. */
-const PER_MINUTE = 10;
 
 /**
  * Cookie-authenticated, so refuse cross-site requests: the browser always
@@ -57,9 +55,15 @@ export const POST = withMiddleware(
       return errorResponse(ctx, 503, "ai_not_configured", "AI chat isn't set up yet: add ANTHROPIC_API_KEY in Vercel and redeploy.");
     }
 
+    const settings = await getAppSettings();
+    if (!settings.aiEnabled) {
+      return errorResponse(ctx, 503, "ai_disabled", "AI chat is turned off in Settings.");
+    }
+    const perMinute = settings.chatMessagesPerMinute;
+
     const supabase = await createClient();
 
-    // Per-admin rate limit, counted from the stored messages.
+    // Per-admin rate limit (from Settings), counted from the stored messages.
     const since = new Date(Date.now() - 60_000).toISOString();
     const { count } = await supabase
       .from("chat_messages")
@@ -67,8 +71,8 @@ export const POST = withMiddleware(
       .eq("user_id", user.id)
       .eq("role", "user")
       .gte("created_at", since);
-    if ((count ?? 0) >= PER_MINUTE) {
-      return errorResponse(ctx, 429, "rate_limited", `Limit reached (${PER_MINUTE} messages per minute). Please wait a moment.`);
+    if ((count ?? 0) >= perMinute) {
+      return errorResponse(ctx, 429, "rate_limited", `Limit reached (${perMinute} messages per minute). Please wait a moment.`);
     }
 
     // Find or create the conversation (RLS: only the admin's own).
@@ -112,7 +116,11 @@ export const POST = withMiddleware(
         const send = (event: Record<string, unknown>) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
         send({ type: "start", conversationId: convId });
         try {
-          const result = await streamReply(turns, (text) => send({ type: "text", text }), signal);
+          const result = await streamReply(turns, (text) => send({ type: "text", text }), {
+            signal,
+            effort: settings.aiEffort,
+            supportNotes: settings.supportNotes,
+          });
           metrics.addCost(result.cost);
           const { error } = await supabase.from("chat_messages").insert({
             conversation_id: convId,

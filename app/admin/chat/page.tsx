@@ -6,6 +6,7 @@ import { PageTitle } from "@/components/admin/page-title";
 import { isAiConfigured } from "@/lib/ai/copilot";
 import { requireAdmin } from "@/lib/auth/session";
 import { deleteConversation } from "@/lib/chat/actions";
+import { getAppSettings } from "@/lib/settings/settings";
 import { getConversation, listConversations, type Conversation } from "@/lib/chat/history";
 
 export const metadata: Metadata = { title: "Chat" };
@@ -27,15 +28,28 @@ async function ChatView({ searchParams }: { searchParams: PageProps<"/admin/chat
 
   const params = await searchParams;
   const selectedId = typeof params.c === "string" ? params.c : null;
-  const [conversations, selected] = await Promise.all([
+  const [conversations, selected, settings] = await Promise.all([
     listConversations(),
     selectedId ? getConversation(selectedId) : Promise.resolve(null),
+    getAppSettings(),
   ]);
-  const aiConfigured = isAiConfigured();
+  const aiConfigured = isAiConfigured() && settings.aiEnabled;
 
   return (
     <div className="space-y-4">
-      {!aiConfigured ? (
+      {isAiConfigured() && !settings.aiEnabled ? (
+        <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+          <p className="font-medium">AI answers are turned off</p>
+          <p className="mt-1 text-amber-200/80">
+            An admin switched them off in{" "}
+            <Link href="/admin/settings" className="underline">
+              Settings
+            </Link>
+            .
+          </p>
+        </div>
+      ) : null}
+      {!isAiConfigured() ? (
         <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
           <p className="font-medium">AI chat isn&apos;t set up yet</p>
           <p className="mt-1 text-amber-200/80">
